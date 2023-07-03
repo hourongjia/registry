@@ -93,17 +93,8 @@ func (o *ConcreteObserver) OnEvent(event Event) error {
 
 func (o *ConcreteObserver) OnEventAsync(event Event) CallBack {
 
-	// do work
-
-	// init AsyncResultEvent
-	asyc := AsyncResultEvent{
-		Code: Success,
-		Data: nil,
-	}
 	// init callback
 	cb := CallBack(myCallback)
-	// do callback
-	cb(asyc)
 	return cb
 }
 
