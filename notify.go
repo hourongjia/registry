@@ -8,6 +8,10 @@ import (
 
 type CallBack func(event AsyncResultEvent) error
 
+func (receiver CallBack) Execute(event AsyncResultEvent) error {
+	return receiver(event)
+}
+
 type Listener interface {
 	OnEvent(event Event) error
 	OnEventAsync(event Event) CallBack
@@ -69,14 +73,14 @@ func (s *ConcreteSubject) NotifyObservers(event Event) {
 			select {
 			case res := <-result:
 				fmt.Println("received result:", res)
-				back(res)
+				back.Execute(res)
 			case <-time.After(5000 * time.Millisecond):
 				fmt.Println("timeout")
 				res := AsyncResultEvent{
 					Code: TimeOut,
 					Data: nil,
 				}
-				back(res)
+				back.Execute(res)
 			}
 		}
 	}
@@ -94,13 +98,17 @@ func (o *ConcreteObserver) OnEvent(event Event) error {
 func (o *ConcreteObserver) OnEventAsync(event Event) CallBack {
 
 	// init callback
-	cb := CallBack(myCallback)
+	cb := CallBack(fail)
 	return cb
 }
 
-func myCallback(event AsyncResultEvent) error {
-	fmt.Println("Result:", event.Code)
-	fmt.Println("Error:", event.Data)
+var success func(event AsyncResultEvent) error = func(event AsyncResultEvent) error {
+	event.Code = Success
+	return nil
+}
+
+var fail func(event AsyncResultEvent) error = func(event AsyncResultEvent) error {
+	event.Code = Error
 	return nil
 }
 
