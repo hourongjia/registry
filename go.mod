@@ -2,4 +2,6 @@ module register
 
 go 1.17
 
-require github.com/orca-zhang/ecache v1.1.1 // indirect
+require (
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+)

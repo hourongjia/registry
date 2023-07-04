@@ -1,7 +1,8 @@
 package registry
 
 import (
-	"github.com/orca-zhang/ecache"
+	"errors"
+	"github.com/patrickmn/go-cache"
 	"time"
 )
 
@@ -15,14 +16,14 @@ type RegistryTableApi interface {
 }
 
 type RegistryCache struct {
-	Cache *ecache.Cache
+	Cache *cache.Cache
 }
 
 // NewRegistryCache 创建注册本地cache
 func NewRegistryCache(bucketCnt uint16) (RegistryCache, error) {
-	var c = ecache.NewLRUCache(bucketCnt, 200, 10*time.Second)
+	Cache := cache.New(cache.NoExpiration, cache.NoExpiration)
 	return RegistryCache{
-		Cache: c,
+		Cache: Cache,
 	}, nil
 }
 
@@ -32,7 +33,7 @@ type CommonRegistry struct {
 }
 
 func (receiver *CommonRegistry) AddData(key string, value string) error {
-	receiver.Cache.Cache.Put(key, value)
+	receiver.Cache.Cache.Add(key, value, cache.NoExpiration)
 	// 注册到注册中新
 	event := Event{
 		Async:     false,
@@ -45,7 +46,7 @@ func (receiver *CommonRegistry) AddData(key string, value string) error {
 
 func (receiver *CommonRegistry) DeleteData(key string) error {
 	// 从注册中心删除
-	receiver.Cache.Cache.Del(key)
+	receiver.Cache.Cache.Delete(key)
 	// 注册到注册中新
 	event := Event{
 		Async:     false,
@@ -67,7 +68,7 @@ func (receiver *CommonRegistry) GetData(key string) (interface{}, error) {
 	return receiver.Cache.Cache.Get(key), nil
 }
 
-func (receiver *CommonRegistry) AddDataWithDeadLine(key string, value string, deadline float64) error {
+func (receiver *CommonRegistry) AddDataWithDeadLine(key string, value string, deadline time.Duration) error {
 	// 注册到注册中新
 	event := Event{
 		Async:     false,
@@ -76,10 +77,11 @@ func (receiver *CommonRegistry) AddDataWithDeadLine(key string, value string, de
 	}
 	receiver.Subject.NotifyObservers(event)
 	// 设置deadline到注册中心
+	receiver.Cache.Cache.Set(key, value, deadline)
 	return nil
 }
 
-func (receiver *CommonRegistry) UpdateDataTime(key string, value float64) error {
+func (receiver *CommonRegistry) UpdateDataTime(key string, expire time.Duration) error {
 	// 注册到注册中新
 	event := Event{
 		Async:     false,
@@ -88,5 +90,10 @@ func (receiver *CommonRegistry) UpdateDataTime(key string, value float64) error 
 	}
 	receiver.Subject.NotifyObservers(event)
 	// 更新数据完成时间戳
+	vs, ok := receiver.Cache.Cache.Get(key)
+	if !ok {
+		return errors.New("can not find data")
+	}
+	receiver.Cache.Cache.Set(key, vs, expire)
 	return nil
 }
